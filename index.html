@@ -862,11 +862,20 @@
         });
     }
 
+    // ── Proxy URL ─────────────────────────────────────────────────────────────
+    // Requests go to our Cloudflare Worker, which forwards them to bconomy.net
+    // server-side (bypassing CORS). Replace this URL after you deploy the Worker.
+    const PROXY_URL = 'https://bconomy-proxy.m30523702.workers.dev/';
+
     apiFetchBtn.onclick = async () => {
         const playerId = apiPlayerIdInput.value.trim();
         const apiKey   = apiKeyInput.value.trim();
         if (!playerId || !apiKey) {
             setFetchStatus('❌ Please enter both your Player ID and API Key.', '#ffa0a0');
+            return;
+        }
+        if (PROXY_URL.includes('YOUR-SUBDOMAIN')) {
+            setFetchStatus('⚙️ Proxy not configured yet — deploy the Cloudflare Worker first and paste your Worker URL into the code as PROXY_URL.', '#ffb84d');
             return;
         }
         persistCredentials();
@@ -875,7 +884,7 @@
         apiFetchBtn.disabled = true;
         apiFetchBtn.textContent = '⏳ Fetching…';
         try {
-            const res = await fetch('https://bconomy.net/api/data', {
+            const res = await fetch(PROXY_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
                 body: JSON.stringify({ type: 'pets/userPetsAndEggs', id: Number(playerId) })
