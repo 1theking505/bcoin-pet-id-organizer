@@ -283,14 +283,42 @@
                     <div class="profile-id" id="profileIdLabel">ID: —</div>
                 </div>
             </div>
-            <button class="profile-collapse-btn" id="profileCollapseBtn">▲ Collapse</button>
+            <button class="profile-collapse-btn" id="profileCollapseBtn">▼ Collapse stats</button>
         </div>
+
+        <!-- Stats + cooldowns: collapsible, open by default -->
         <div class="profile-body" id="profileBody">
             <div class="profile-grid" id="profileGrid"></div>
             <div class="profile-section-title">⏱ Cooldowns</div>
             <div class="cooldown-grid" id="profileCooldowns"></div>
-            <div class="profile-section-title">📌 Pinned Pets In-Game (<span id="profilePinCount">0</span>)</div>
-            <div class="pinned-pets-summary" id="profilePinnedPets"></div>
+        </div>
+
+        <!-- In-game pins section: copy buttons always visible, list collapsed by default -->
+        <div style="margin-top:14px; border-top:1px solid #2e2e50; padding-top:12px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; margin-bottom:10px;">
+                <span style="font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:#6668aa;">
+                    📌 In-Game Pinned Pets (<span id="profilePinCount">0</span>)
+                </span>
+                <button class="profile-collapse-btn" id="pinnedListToggleBtn">▶ Show list</button>
+            </div>
+
+            <!-- Copy buttons — always visible regardless of list collapse -->
+            <div style="display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;" id="pinCopyButtons">
+                <button id="copyPinIdsBtn" class="secondary" style="font-size:12px; padding:6px 14px; border-radius:20px;">
+                    📋 Copy Pin IDs
+                </button>
+                <button id="copySetPinsBtn" class="secondary" style="font-size:12px; padding:6px 14px; border-radius:20px;">
+                    📋 Copy /pets/setpins (current)
+                </button>
+                <button id="copySetPinsLockedBtn" class="secondary" style="font-size:12px; padding:6px 14px; border-radius:20px;" title="Available in Lock mode">
+                    📋 Copy /pets/setpins (locked order)
+                </button>
+            </div>
+
+            <!-- Pinned pets list: collapsed by default -->
+            <div id="profilePinnedPets" style="display:none;">
+                <div class="pinned-pets-summary" id="profilePinnedPetsList"></div>
+            </div>
         </div>
     </div>
 
@@ -742,12 +770,14 @@
             eggsCountSpan.innerText = eggs.length;
             updateFilterOptions(pets);
 
-            // ── Apply in-game pins from profile ──────────────────────────────
+            // ── Store in-game pin order (for default sort + profile display) ──
+            // NOTE: we do NOT populate the tool's pinnedIds from these —
+            // tool pins are the user's own editing tool, kept completely separate.
             inGamePinnedIds = [];
-            pinnedIds.clear();
+            pinnedIds.clear();   // always start with no tool-pins on fresh load
             if (profileData && Array.isArray(profileData.pinnedPetIds) && profileData.pinnedPetIds.length) {
                 inGamePinnedIds = profileData.pinnedPetIds.map(Number);
-                inGamePinnedIds.forEach(id => pinnedIds.add(id));
+                // pinnedIds intentionally NOT populated here
             }
 
             // Reset all UI state
@@ -830,18 +860,54 @@
         }
     }
 
-    // ─── Profile Card Rendering ───────────────────────────────────────────────
-    const profileCard         = document.getElementById('profileCard');
-    const profileCollapseBtn  = document.getElementById('profileCollapseBtn');
-    const profileBody         = document.getElementById('profileBody');
-    let profileCollapsed = false;
+    // ─── Profile Card ─────────────────────────────────────────────────────────
+    const profileCard        = document.getElementById('profileCard');
+    const profileCollapseBtn = document.getElementById('profileCollapseBtn');
+    const profileBody        = document.getElementById('profileBody');
+    const pinnedListToggleBtn= document.getElementById('pinnedListToggleBtn');
+    const profilePinnedPets  = document.getElementById('profilePinnedPets');
+    let profileCollapsed   = false;
+    let pinnedListExpanded = false;
 
     profileCollapseBtn.onclick = () => {
         profileCollapsed = !profileCollapsed;
-        profileBody.style.display = profileCollapsed ? 'none' : 'block';
-        profileCollapseBtn.textContent = profileCollapsed ? '▼ Expand' : '▲ Collapse';
+        profileBody.style.display      = profileCollapsed ? 'none' : 'block';
+        profileCollapseBtn.textContent = profileCollapsed ? '▶ Show stats' : '▼ Collapse stats';
     };
 
+    pinnedListToggleBtn.onclick = () => {
+        pinnedListExpanded = !pinnedListExpanded;
+        profilePinnedPets.style.display = pinnedListExpanded ? 'block' : 'none';
+        pinnedListToggleBtn.textContent = pinnedListExpanded ? '▼ Hide list' : '▶ Show list';
+    };
+
+    // ── Copy helpers ──────────────────────────────────────────────────────────
+    function flashBtn(btn, msg) {
+        const orig = btn.textContent;
+        btn.textContent = msg;
+        setTimeout(() => { btn.textContent = orig; }, 1600);
+    }
+
+    document.getElementById('copyPinIdsBtn').onclick = () => {
+        if (!inGamePinnedIds.length) { alert('No in-game pins loaded.'); return; }
+        navigator.clipboard.writeText(JSON.stringify(inGamePinnedIds))
+            .then(() => flashBtn(document.getElementById('copyPinIdsBtn'), '✅ Copied!'));
+    };
+
+    document.getElementById('copySetPinsBtn').onclick = () => {
+        if (!inGamePinnedIds.length) { alert('No in-game pins loaded.'); return; }
+        navigator.clipboard.writeText(`/pets/setpins ${JSON.stringify(inGamePinnedIds)}`)
+            .then(() => flashBtn(document.getElementById('copySetPinsBtn'), '✅ Copied!'));
+    };
+
+    document.getElementById('copySetPinsLockedBtn').onclick = () => {
+        if (!locked) { alert('Lock the order first, then use this button.'); return; }
+        const ids = applyPinOrder(lockedOrder).map(p => p.id);
+        navigator.clipboard.writeText(`/pets/setpins ${JSON.stringify(ids)}`)
+            .then(() => flashBtn(document.getElementById('copySetPinsLockedBtn'), '✅ Copied!'));
+    };
+
+    // ── Format helpers ────────────────────────────────────────────────────────
     function fmtNum(n) {
         if (n == null) return '—';
         return Number(n).toLocaleString();
@@ -867,48 +933,42 @@
     function renderProfile(profile, petMap) {
         if (!profile) return;
 
-        // Name + ID
-        document.getElementById('profileName').textContent = profile.name || '—';
+        document.getElementById('profileName').textContent    = profile.name || '—';
         document.getElementById('profileIdLabel').textContent = `ID: ${profile.id ?? '—'}`;
 
-        // Pick a fun emoji based on rank/tier
         const tierEmojis = ['🥉','🥈','🥇','💎','👑'];
-        document.getElementById('profileEmoji').textContent = tierEmojis[Math.min((profile.tier || 1) - 1, 4)] || '👤';
+        document.getElementById('profileEmoji').textContent   = tierEmojis[Math.min((profile.tier || 1) - 1, 4)] || '👤';
 
-        // Main stat grid
         const faction = profile.factionTag ? `[${profile.factionTag}]` : '—';
         const premium = profile.premiumExpiryDate
             ? (new Date(profile.premiumExpiryDate) > new Date() ? '✅ Active' : '❌ Expired')
             : '—';
 
         const gridStats = [
-            { label: 'Rank',        value: fmtNum(profile.rank),             cls: 'highlight' },
-            { label: 'Tier',        value: profile.tier ?? '—',              cls: 'highlight' },
-            { label: '💰 BC',       value: fmtNum(profile.bc),               cls: 'green' },
-            { label: '⭐ SP',       value: fmtNum(profile.sp),               cls: 'blue' },
-            { label: '🔮 KR',       value: fmtNum(profile.kr),               cls: 'orange' },
-            { label: 'Quest Level', value: fmtNum(profile.questLevel),       cls: '' },
-            { label: 'Daily Streak',value: fmtNum(profile.dailyClaimStreak), cls: '' },
-            { label: 'Faction',     value: faction,                          cls: '' },
-            { label: 'Premium',     value: premium,                          cls: '' },
-            { label: 'Joined',      value: fmtDate(profile.registrationDate),cls: '' },
+            { label: 'Rank',         value: fmtNum(profile.rank),             cls: 'highlight' },
+            { label: 'Tier',         value: profile.tier ?? '—',              cls: 'highlight' },
+            { label: '💰 BC',        value: fmtNum(profile.bc),               cls: 'green' },
+            { label: '⭐ SP',        value: fmtNum(profile.sp),               cls: 'blue' },
+            { label: '🔮 KR',        value: fmtNum(profile.kr),               cls: 'orange' },
+            { label: 'Quest Level',  value: fmtNum(profile.questLevel),       cls: '' },
+            { label: 'Daily Streak', value: fmtNum(profile.dailyClaimStreak), cls: '' },
+            { label: 'Faction',      value: faction,                          cls: '' },
+            { label: 'Premium',      value: premium,                          cls: '' },
+            { label: 'Joined',       value: fmtDate(profile.registrationDate),cls: '' },
         ];
 
-        const grid = document.getElementById('profileGrid');
-        grid.innerHTML = gridStats.map(s => `
+        document.getElementById('profileGrid').innerHTML = gridStats.map(s => `
             <div class="profile-stat">
                 <div class="profile-stat-label">${s.label}</div>
                 <div class="profile-stat-value ${s.cls}">${s.value}</div>
             </div>`).join('');
 
-        // Cooldowns
         const cdKeys = {
             fish:'🎣 Fish', hunt:'🏹 Hunt', explore:'🧭 Explore', mine:'⛏ Mine',
             work:'💼 Work', daily:'📅 Daily', water:'💧 Water'
         };
         const cds = profile.cooldowns || {};
-        const cdEl = document.getElementById('profileCooldowns');
-        cdEl.innerHTML = Object.entries(cdKeys).map(([k, label]) => {
+        document.getElementById('profileCooldowns').innerHTML = Object.entries(cdKeys).map(([k, label]) => {
             const { label: cdLabel, cls } = fmtCooldown(cds[k]);
             return `<div class="cooldown-pill">
                 <span class="cdl">${label}</span>
@@ -916,19 +976,27 @@
             </div>`;
         }).join('');
 
-        // Pinned pets summary
+        // Pinned pets list (collapsed by default, reset on each load)
         const pinIds = Array.isArray(profile.pinnedPetIds) ? profile.pinnedPetIds : [];
         document.getElementById('profilePinCount').textContent = pinIds.length;
-        const ppEl = document.getElementById('profilePinnedPets');
+        const listEl = document.getElementById('profilePinnedPetsList');
         if (pinIds.length === 0) {
-            ppEl.innerHTML = '<span style="color:#666;font-size:12px;">No pinned pets</span>';
+            listEl.innerHTML = '<span style="color:#666;font-size:12px;">No pinned pets</span>';
         } else {
-            ppEl.innerHTML = pinIds.map((id, i) => {
-                const pet = petMap && petMap.get(id);
+            listEl.innerHTML = pinIds.map((id, i) => {
+                const pet   = petMap && petMap.get(id);
                 const label = pet ? `${getEmoji(pet.species)} ${pet.name || id}` : `#${id}`;
                 return `<span class="pinned-pill" title="Pin slot ${i+1}: ID ${id}">${i+1}. ${label}</span>`;
             }).join('');
         }
+
+        // Reset collapse states on each fresh load
+        pinnedListExpanded = false;
+        profilePinnedPets.style.display  = 'none';
+        pinnedListToggleBtn.textContent  = '▶ Show list';
+        profileCollapsed = false;
+        profileBody.style.display        = 'block';
+        profileCollapseBtn.textContent   = '▼ Collapse stats';
 
         profileCard.style.display = 'block';
     }
