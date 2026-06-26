@@ -358,8 +358,9 @@
             💡 <strong>Before locking:</strong> Pin rows you want fixed at the top, then drag to manually reorder.
             Once locked, pins and drag are frozen — run Nuclear Order to sort the rest, then copy IDs.
         </p>
-        <div id="advMismatchBanner" style="display:none; margin-top:10px; padding:10px 16px; border-radius:12px; font-size:13px;"></div>
     </div>
+
+    <div id="advMismatchBanner" style="display:none; margin-bottom:16px; padding:12px 18px; border-radius:14px; font-size:13px;"></div>
 
     <div id="statsPanel" class="stats">
         <div class="stat">🐕 Pets loaded: <span id="petsCount">0</span></div>
@@ -826,6 +827,7 @@
             // Reset all UI state
             magicMode = false;
             magicModeToggle.checked = false;
+            document.getElementById('advMismatchBanner').style.display = 'none';
             magicIdContainer.style.display = 'none';
             magicWarning.style.display = 'none';
             magicStat.style.display = 'none';
@@ -862,6 +864,7 @@
             }
 
             renderTable();
+            checkAdventureMismatches();
         } catch(err) {
             tableContainer.innerHTML = `<div class="error">❌ ${err.message}</div>`;
         }
