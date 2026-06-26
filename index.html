@@ -322,6 +322,9 @@
         </div>
     </div>
 
+    <!-- Adventure mismatch banner — always visible once pets are loaded, regardless of profile -->
+    <div id="advMismatchBanner" style="display:none; margin-bottom:16px; padding:12px 18px; border-radius:14px; font-size:13px; border: 1px solid transparent;"></div>
+
     <!-- Magic Mode Panel -->
     <div class="magic-panel">
         <div class="magic-header">
@@ -359,8 +362,6 @@
             Once locked, pins and drag are frozen — run Nuclear Order to sort the rest, then copy IDs.
         </p>
     </div>
-
-    <div id="advMismatchBanner" style="display:none; margin-bottom:16px; padding:12px 18px; border-radius:14px; font-size:13px;"></div>
 
     <div id="statsPanel" class="stats">
         <div class="stat">🐕 Pets loaded: <span id="petsCount">0</span></div>
@@ -827,7 +828,6 @@
             // Reset all UI state
             magicMode = false;
             magicModeToggle.checked = false;
-            document.getElementById('advMismatchBanner').style.display = 'none';
             magicIdContainer.style.display = 'none';
             magicWarning.style.display = 'none';
             magicStat.style.display = 'none';
