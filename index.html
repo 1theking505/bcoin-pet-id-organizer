@@ -353,7 +353,7 @@
                 <button id="nuclearOrderBtn">⚛️ Nuclear Order 1 (Species → Skin: None→Eta, Sunkissed…Static → Aura)</button>
                 <button id="nuclearOrder2Btn">⚛️ Nuclear Order 2 (Species → Skin: Eta→None, Sunkissed…Static → Aura)</button>
                 <button id="nuclearOrder3Btn">⚛️ Nuclear Order 3 (Skin: Eta…Alpha→Sunkissed…Static→None → Aura → Species)</button>
-                <button id="nuclearOrder4Btn">🌍 Nuclear Order 4 (Global Adv Type → Tier↓ → Skin↓ → Aura)</button>
+                <button id="nuclearOrder4Btn">🌍 Nuclear Order 4 (Tier↓ → Global Adv Type → Species → Skin↓ → Aura)</button>
                 <button id="copyIdsBtn">📋 Copy IDs Order</button>
             </div>
         </div>
@@ -389,7 +389,7 @@
         ⚛️ Nuclear 1 &amp; 2: <strong>Species → Skin → Aura</strong> — within each species+skin group, aura pets come first, no-aura last.<br>
         Nuclear 1 skin order: None → Alpha…Eta → Sunkissed…Static. Nuclear 2: Eta…Alpha → None → Sunkissed…Static.<br>
         Nuclear 3: <strong>Skin → Species → Aura</strong> — skin order: Eta…Alpha → Sunkissed…Static → None last. Within each skin+species, aura first, no-aura last.<br>
-        🌍 Nuclear 4: <strong>Global Adv Type → Tier↓ → Skin↓ → Aura</strong> — groups by inherent pet bonus (Fish → Hunt → Explore → Mine), then highest tier first, then Eta…Alpha → None → specials last, then aura. Includes ⚠️ mismatch warning if any pet is on the wrong adventure type.
+        🌍 Nuclear 4: <strong>Tier↓ → Global Adv Type → Species → Skin↓ → Aura</strong> — highest tier first, within each tier grouped by Fish→Hunt→Explore→Mine, then same species together, then Eta…Alpha→None→specials, then aura. Includes ⚠️ mismatch warning if any pet is on the wrong adventure type.
     </footer>
 </div>
 
@@ -747,16 +747,20 @@
         const pinned   = lockedOrder.filter(p => pinnedIds.has(p.id));
         let   unpinned = lockedOrder.filter(p => !pinnedIds.has(p.id));
         unpinned.sort((a, b) => {
-            // 1. Global adventure type (Fish → Hunt → Explore → Mine → unknown)
-            const advDiff = getGlobalAdvRank(a.species) - getGlobalAdvRank(b.species);
-            if (advDiff !== 0) return advDiff;
-            // 2. Tier descending (higher tier = better = comes first)
+            // 1. Tier descending (20 → 19 → 18 … → 0)
             const tierDiff = (b.tier ?? 0) - (a.tier ?? 0);
             if (tierDiff !== 0) return tierDiff;
-            // 3. Skin: Eta→Alpha (base best→worst) → None → specials last
+            // 2. Global adventure type (Fish → Hunt → Explore → Mine → unknown)
+            const advDiff = getGlobalAdvRank(a.species) - getGlobalAdvRank(b.species);
+            if (advDiff !== 0) return advDiff;
+            // 3. Species — all same species grouped together within same tier+type
+            const specA = SPECIES_INDEX.get(a.species?.toLowerCase()) ?? 999;
+            const specB = SPECIES_INDEX.get(b.species?.toLowerCase()) ?? 999;
+            if (specA !== specB) return specA - specB;
+            // 4. Skin: Eta→Alpha (base best→worst) → None → specials last
             const skinDiff = rankOf(SKIN_INDEX_4, a.skin) - rankOf(SKIN_INDEX_4, b.skin);
             if (skinDiff !== 0) return skinDiff;
-            // 4. Aura: has aura before no-aura
+            // 5. Aura: has aura before no-aura
             return rankOf(AURA_INDEX, a.aura) - rankOf(AURA_INDEX, b.aura);
         });
         lockedOrder = [...pinned, ...unpinned];
